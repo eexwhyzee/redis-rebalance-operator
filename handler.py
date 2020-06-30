@@ -9,39 +9,6 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
 
 
-# @kopf.on.update('apps', 'v1', 'statefulsets', labels={'app': 'redis-dev-cluster'})
-# def update_fn(logger, spec, old, new, diff, **_):
-#     logger.info(f'Change detected!')
-#     logger.info(f'{spec}, {old}, {new}')
-    
-#     api = kubernetes.client.CoreV1Api()
-#     while True:
-#         try:
-#             resp = api.read_namespaced_pod(
-#                 name='redis-dev-cluster-7',
-#                 namespace='redis'
-#             )
-#         except ApiException as e:
-#             logger.info('Waiting for pod to start up...')
-#             time.sleep(1)
-#             continue
-
-#         if resp.status.phase != 'Pending':
-#             break
-#         time.sleep(1)
-
-#     exec_command = [
-#         '/bin/sh',
-#         '-c',
-#         'echo This message goes to stderr; echo This message goes to stdout']
-#     resp = stream(api.connect_get_namespaced_pod_exec,
-#                   'redis-dev-cluster-7',
-#                   'redis',
-#                   command=exec_command,
-#                   stderr=True, stdin=False,
-#                   stdout=True, tty=False)
-#     logger.info("Response: " + resp)
-
 @kopf.on.field('apps', 'v1', 'statefulsets', labels={'app': 'redis-dev-cluster'}, field='spec.replicas')
 def update_replica(logger, body, meta, spec, status, old, new, **kwargs):
     logger.info(f'Handling the FIELD = {old} -> {new}')

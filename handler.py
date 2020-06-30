@@ -11,15 +11,16 @@ from kubernetes.stream import stream
 
 @kopf.on.field('apps', 'v1', 'statefulsets', labels={'app': os.environ['APP_NAME']}, field='spec.replicas')
 def update_replica(logger, body, meta, spec, status, old, new, **kwargs):
-    logger.info(f'Handling the FIELD = {old} -> {new}')
+    logger.info(f'Handling the Replica Update = {old} -> {new}')
+    namespace = meta.namespace
 
     if new > old:
         api = kubernetes.client.CoreV1Api()
         while True:
             try:
                 resp = api.read_namespaced_pod(
-                    name=f'{os.environ['APP_NAME']}-{new-1}',
-                    namespace='redis'
+                    name=f"{os.environ['APP_NAME']}-{new-1}",
+                    namespace=namespace
                 )
                 new_node_ip = resp.status.pod_ip
                 logger.info(f'New node IP: {new_node_ip}')
@@ -34,8 +35,8 @@ def update_replica(logger, body, meta, spec, status, old, new, **kwargs):
 
         # Get pod IP from node in existing cluster
         resp = api.read_namespaced_pod(
-                    name=f'{os.environ['APP_NAME']}-0',
-                    namespace='redis'
+                    name=f"{os.environ['APP_NAME']}-0",
+                    namespace=namespace
                 )
         existing_node_ip = resp.status.pod_ip
         logger.info(f'Existing node ip: {existing_node_ip}')
@@ -46,12 +47,12 @@ def update_replica(logger, body, meta, spec, status, old, new, **kwargs):
             'redis-cli',
             '--cluster',
             'add-node',
-            f'{new_node_ip}:{os.environ['REDIS_PORT']}',
-            f'{existing_node_ip}:{os.environ['REDIS_PORT']}',
+            f"{new_node_ip}:{os.environ['REDIS_PORT']}",
+            f"{existing_node_ip}:{os.environ['REDIS_PORT']}",
             ]
         resp = stream(api.connect_get_namespaced_pod_exec,
-                f'{os.environ['APP_NAME']}-{new-1}',
-                'redis',
+                f"{os.environ['APP_NAME']}-{new-1}",
+                namespace,
                 command=exec_command,
                 stderr=True, stdin=False,
                 stdout=True, tty=False)
@@ -63,8 +64,8 @@ def update_replica(logger, body, meta, spec, status, old, new, **kwargs):
             '/sbin/killall5',
             ]
         resp = stream(api.connect_get_namespaced_pod_exec,
-                f'{os.environ['APP_NAME']}-{new-1}',
-                'redis',
+                f"{os.environ['APP_NAME']}-{new-1}",
+                namespace,
                 command=exec_command,
                 stderr=True, stdin=False,
                 stdout=True, tty=False)
@@ -75,12 +76,12 @@ def update_replica(logger, body, meta, spec, status, old, new, **kwargs):
             'redis-cli',
             '--cluster',
             'rebalance',
-            f'{existing_node_ip}:{os.environ['REDIS_PORT']}',
+            f"{existing_node_ip}:{os.environ['REDIS_PORT']}",
             '--cluster-use-empty-masters',
             ]
         resp = stream(api.connect_get_namespaced_pod_exec,
-                    f'{os.environ['APP_NAME']}-0',
-                    'redis',
+                    f"{os.environ['APP_NAME']}-0",
+                    namespace,
                     command=exec_command,
                     stderr=True, stdin=False,
                     stdout=True, tty=False)
@@ -91,7 +92,7 @@ def update_replica(logger, body, meta, spec, status, old, new, **kwargs):
         logger.info('Deleting PVC...')
         api = kubernetes.client.CoreV1Api()
         resp = api.delete_namespaced_persistent_volume_claim(
-                    name=f'redis-data-{os.environ['APP_NAME']}-{old-1}',
-                    namespace='redis',
+                    name=f"redis-data-{os.environ['APP_NAME']}-{old-1}",
+                    namespace=namespace,
                     body=kubernetes.client.V1DeleteOptions()
                 )

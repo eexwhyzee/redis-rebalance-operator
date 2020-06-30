@@ -46,8 +46,8 @@ def update_replica(logger, body, meta, spec, status, old, new, **kwargs):
             'redis-cli',
             '--cluster',
             'add-node',
-            f'{new_node_ip}:6379',
-            f'{existing_node_ip}:6379',
+            f'{new_node_ip}:{os.environ['REDIS_PORT']}',
+            f'{existing_node_ip}:{os.environ['REDIS_PORT']}',
             ]
         resp = stream(api.connect_get_namespaced_pod_exec,
                 f'{os.environ['APP_NAME']}-{new-1}',
@@ -75,7 +75,7 @@ def update_replica(logger, body, meta, spec, status, old, new, **kwargs):
             'redis-cli',
             '--cluster',
             'rebalance',
-            f'{existing_node_ip}:6379',
+            f'{existing_node_ip}:{os.environ['REDIS_PORT']}',
             '--cluster-use-empty-masters',
             ]
         resp = stream(api.connect_get_namespaced_pod_exec,
